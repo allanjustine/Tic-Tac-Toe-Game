@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tic Tac Toe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  </head>
+  <body
+    class="bg-gray-900 text-white flex items-center justify-center min-h-screen"
+  >
+    <!-- Name & Difficulty Modal -->
+    <div
+      id="setupModal"
+      class="absolute inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center"
+    >
+      <div class="bg-gray-800 p-6 rounded-lg text-center w-80">
+        <h2 class="text-2xl mb-4">Enter Your Name & Select Difficulty</h2>
+        <div class="mb-4">
+          <input
+            id="playerNameInput"
+            type="text"
+            class="w-full p-2 rounded-md text-black"
+            placeholder="Your name..."
+          />
+          <small class="text-red-500 hidden" id="enterNameError"
+            >Please enter your name!</small
+          >
+        </div>
+
+        <label for="difficulty" class="block mb-2 font-semibold"
+          >Difficulty:</label
+        >
+        <select id="difficulty" class="w-full p-2 rounded-md mb-6 text-black">
+          <option value="easy">Easy (Random)</option>
+          <option value="medium" selected>Medium (Blocks & Wins)</option>
+          <option value="hard">Hard (Unbeatable)</option>
+        </select>
+
+        <button
+          type="button"
+          id="startBtn"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded w-full font-bold"
+        >
+          Start Game
+        </button>
+      </div>
+    </div>
+
+    <div class="text-center hidden" id="gameContainer">
+      <h1 class="text-3xl font-bold mb-4">Tic Tac Toe</h1>
+      <div
+        id="stats"
+        class="mb-4 p-4 bg-gray-800 rounded shadow-lg inline-block text-left max-w-xs mx-auto"
+      ></div>
+      <div id="game" class="grid grid-cols-3 gap-2 w-60 mx-auto w-auto"></div>
+      <p id="status" class="mt-4 text-lg font-semibold"></p>
+      <div class="mt-4 space-x-2">
+        <button
+          type="button"
+          id="restart"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+        >
+          Restart
+        </button>
+        <button
+          type="button"
+          id="showStats"
+          class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded"
+        >
+          View Scoreboard
+        </button>
+      </div>
+    </div>
+
+    <!-- Scoreboard Modal -->
+    <div
+      id="scoreModal"
+      class="absolute inset-0 bg-gray-900 bg-opacity-75 hidden overflow-auto py-6 flex items-center justify-center"
+    >
+      <div class="bg-gray-800 p-6 rounded-lg max-w-md w-full">
+        <h2 class="text-2xl mb-4 text-center font-bold">Scoreboard</h2>
+        <div id="scoreList" class="max-h-[600px] overflow-y-auto"></div>
+        <button
+          type="button"
+          id="closeScore"
+          class="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded w-full"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const playerNameInput = document.getElementById("playerNameInput");
+      const difficultySelect = document.getElementById("difficulty");
+      const startBtn = document.getElementById("startBtn");
+      const setupModal = document.getElementById("setupModal");
+      const gameContainer = document.getElementById("gameContainer");
+      const statsDiv = document.getElementById("stats");
+
+      const game = document.getElementById("game");
+      const statusText = document.getElementById("status");
+      const restartBtn = document.getElementById("restart");
+      const showStatsBtn = document.getElementById("showStats");
+
+      const scoreModal = document.getElementById("scoreModal");
+      const scoreList = document.getElementById("scoreList");
+      const closeScoreBtn = document.getElementById("closeScore");
+
+      const player = "X";
+      const ai = "O";
+      const winningCombos = [
+        [0, 1, 2],
+        [3, 4, 5],
+        [6, 7, 8],
+        [0, 3, 6],
+        [1, 4, 7],
+        [2, 5, 8],
+        [0, 4, 8],
+        [2, 4, 6],
+      ];
+
+      let board = Array(9).fill("");
+      let gameOver = false;
+      let playerName = "";
+      // Stats per difficulty
+      let stats = {
+        easy: { wins: 0, losses: 0, draws: 0 },
+        medium: { wins: 0, losses: 0, draws: 0 },
+        hard: { wins: 0, losses: 0, draws: 0 },
+      };
+      let difficulty = "medium";
+
+      // Load saved data
+      function loadPlayerData() {
+        const savedName = localStorage.getItem("ticTacToePlayerName");
+        const savedStats = JSON.parse(localStorage.getItem("ticTacToeStats"));
+        const savedDifficulty = localStorage.getItem("ticTacToeDifficulty");
+        if (savedName) playerName = savedName;
+        if (savedStats) stats = savedStats;
+        if (savedDifficulty) difficulty = savedDifficulty;
+      }
+
+      // Save data
+      function savePlayerData() {
+        localStorage.setItem("ticTacToePlayerName", playerName);
+        localStorage.setItem("ticTacToeStats", JSON.stringify(stats));
+        localStorage.setItem("ticTacToeDifficulty", difficulty);
+      }
+
+      // Update stats display (only current difficulty)
+      async function submitScore(scoreData) {
+        try {
+          const response = await axios.post(
+            "https://flappybird-server.smctgroup.ph/tictactoe/submit-score",
+            scoreData
+          );
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      function updateStatsDisplay() {
+        const diffStats = stats[difficulty] || { wins: 0, losses: 0, draws: 0 };
+        statsDiv.innerHTML = `
+          <div class="font-bold text-xl">${playerName}</div>
+          <div class="mt-2">
+            <div>Wins: ${diffStats.wins}</div>
+            <div>Losses: ${diffStats.losses}</div>
+            <div>Draws: ${diffStats.draws}</div>
+          </div>
+          <div class="mt-2 font-semibold">Difficulty: 
+            <select class="bg-gray-800 text-white p-2 rounded" onchange="updateDifficulty(event)">
+              <option value="easy" ${
+                difficulty === "easy" ? "selected" : ""
+              }>Easy</option>
+              <option value="medium" ${
+                difficulty === "medium" ? "selected" : ""
+              }>Medium</option>
+              <option value="hard" ${
+                difficulty === "hard" ? "selected" : ""
+              }>Hard</option>
+            </select>
+          </div>
+        `;
+      }
+
+      function updateDifficulty(e) {
+        difficulty = e.target.value;
+        savePlayerData();
+        location.reload();
+      }
+
+      // Render game grid
+      function renderBoard() {
+        game.innerHTML = "";
+        board.forEach((cell, idx) => {
+          const cellDiv = document.createElement("div");
+          cellDiv.className =
+            "w-36 h-36 flex items-center justify-center text-3xl bg-gray-800 cursor-pointer select-none";
+          cellDiv.textContent = cell;
+          cellDiv.addEventListener("click", () => playerMove(idx));
+          game.appendChild(cellDiv);
+        });
+      }
+
+      // Handle player's move
+      function playerMove(idx) {
+        if (board[idx] || gameOver) return;
+        board[idx] = player;
+        renderBoard();
+
+        const winner = checkWinner();
+        if (winner || isDraw()) return endGame(winner);
+
+        setTimeout(cpuMove, 300);
+      }
+
+      // CPU move based on difficulty
+      function cpuMove() {
+        let move;
+        if (difficulty === "easy") {
+          move = getRandomMove();
+        } else if (difficulty === "medium") {
+          move = getMediumMove();
+        } else {
+          move = getBestMove();
+        }
+        board[move] = ai;
+        renderBoard();
+
+        const winner = checkWinner();
+        if (winner || isDraw()) endGame(winner);
+      }
+
+      // Easy: random move
+      function getRandomMove() {
+        const emptyIndices = board
+          .map((v, i) => (v === "" ? i : null))
+          .filter((i) => i !== null);
+        return emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+      }
+
+      // Medium: tries to win or block, else random
+      function getMediumMove() {
+        // 1. Win if possible
+        let move = findWinningMove(ai);
+        if (move !== -1) return move;
+
+        // 2. Block if player about to win
+        move = findWinningMove(player);
+        if (move !== -1) return move;
+
+        // 3. Else random move
+        return getRandomMove();
+      }
+
+      // Find winning move for a given player
+      function findWinningMove(symbol) {
+        for (let combo of winningCombos) {
+          const [a, b, c] = combo;
+          const line = [board[a], board[b], board[c]];
+          if (
+            line.filter((s) => s === symbol).length === 2 &&
+            line.includes("")
+          ) {
+            const emptyIndex = combo[line.indexOf("")];
+            return emptyIndex;
+          }
+        }
+        return -1;
+      }
+
+      // Hard: full minimax
+      function getBestMove() {
+        let bestScore = -Infinity,
+          move;
+        board.forEach((cell, idx) => {
+          if (!cell) {
+            board[idx] = ai;
+            const score = minimax(board, 0, false);
+            board[idx] = "";
+            if (score > bestScore) [bestScore, move] = [score, idx];
+          }
+        });
+        return move;
+      }
+
+      function minimax(bd, depth, isMax) {
+        const winner = checkWinner(bd);
+        if (winner === ai) return 10 - depth;
+        if (winner === player) return depth - 10;
+        if (isDraw(bd)) return 0;
+
+        if (isMax) {
+          let maxScore = -Infinity;
+          bd.forEach((c, i) => {
+            if (!c) {
+              bd[i] = ai;
+              maxScore = Math.max(maxScore, minimax(bd, depth + 1, false));
+              bd[i] = "";
+            }
+          });
+          return maxScore;
+        } else {
+          let minScore = Infinity;
+          bd.forEach((c, i) => {
+            if (!c) {
+              bd[i] = player;
+              minScore = Math.min(minScore, minimax(bd, depth + 1, true));
+              bd[i] = "";
+            }
+          });
+          return minScore;
+        }
+      }
+
+      function checkWinner(bd = board) {
+        for (const [a, b, c] of winningCombos) {
+          if (bd[a] && bd[a] === bd[b] && bd[a] === bd[c]) return bd[a];
+        }
+        return null;
+      }
+
+      function isDraw(bd = board) {
+        return bd.every((cell) => cell !== "") && !checkWinner(bd);
+      }
+
+      function endGame(winner) {
+        gameOver = true;
+        if (winner === player) {
+          statusText.textContent = `You Win! 🎉`;
+          stats[difficulty].wins++;
+        } else if (winner === ai) {
+          statusText.textContent = `You Lose 😞`;
+          stats[difficulty].losses++;
+        } else {
+          statusText.textContent = `It's a Draw. 🤝`;
+          stats[difficulty].draws++;
+        }
+        updateStatsDisplay();
+        savePlayerData();
+        const diffStats = stats[difficulty] || { wins: 0, losses: 0, draws: 0 };
+        const scoreData = {
+          player_name: playerName,
+          difficulty: difficulty,
+          win: diffStats.wins,
+          loss: diffStats.losses,
+          draw: diffStats.draws,
+        };
+        submitScore(scoreData);
+      }
+
+      function resetGame() {
+        board = Array(9).fill("");
+        gameOver = false;
+        statusText.textContent = "";
+        renderBoard();
+      }
+
+      startBtn.addEventListener("click", () => {
+        const name = playerNameInput.value.trim();
+        if (!name) {
+          document.getElementById("enterNameError").classList.remove("hidden");
+          return;
+        }
+        playerName = name;
+        difficulty = difficultySelect.value;
+        savePlayerData();
+        setupModal.style.display = "none";
+        gameContainer.style.display = "block";
+        updateStatsDisplay();
+        resetGame();
+      });
+
+      restartBtn.addEventListener("click", resetGame);
+
+      showStatsBtn.addEventListener("click", async () => {
+        const response = await axios.get(
+          "https://flappybird-server.smctgroup.ph/tictactoe/scoreboard"
+        );
+        scoreList.innerHTML = "";
+        const data = response.data.data;
+
+        data.map((item, index) => {
+          const div = document.createElement("div");
+          div.className = "p-4 bg-gray-700 rounded mb-2";
+
+          div.innerHTML = `
+            <div class="flex justify-between">
+              <div class="font-bold text-lg">${item.player_name}</div>
+              <span class="font-bold capitalize italic text-lg ${
+                item.difficulty === "easy"
+                  ? "text-green-500"
+                  : item.difficulty === "medium"
+                  ? "text-yellow-500"
+                  : "text-red-500"
+              }">${item.difficulty}</span>
+            </div>
+            <div>Wins: ${item.win}</div>
+            <div>Losses: ${item.loss}</div>
+            <div>Draws: ${item.draw}</div>
+          `;
+
+          scoreList.appendChild(div);
+        });
+
+        scoreModal.classList.remove("hidden");
+      });
+
+      closeScoreBtn.addEventListener("click", () => {
+        scoreModal.classList.add("hidden");
+      });
+
+      // On page load: load saved name & stats, show modal or start game
+      loadPlayerData();
+      if (playerName) {
+        playerNameInput.value = playerName;
+        difficultySelect.value = difficulty;
+        setupModal.style.display = "none";
+        gameContainer.style.display = "block";
+        updateStatsDisplay();
+        resetGame();
+      }
+    </script>
+  </body>
+</html>
