@@ -50,27 +50,38 @@
 
     <div class="text-center hidden" id="gameContainer">
       <h1 class="text-3xl font-bold mb-4">Tic Tac Toe</h1>
-      <div
-        id="stats"
-        class="mb-4 p-4 bg-gray-800 rounded shadow-lg inline-block text-left max-w-xs mx-auto"
-      ></div>
-      <div id="game" class="grid grid-cols-3 gap-2 w-60 mx-auto w-auto"></div>
-      <p id="status" class="mt-4 text-lg font-semibold"></p>
-      <div class="mt-4 space-x-2">
-        <button
-          type="button"
-          id="restart"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
-        >
-          Restart
-        </button>
-        <button
-          type="button"
-          id="showStats"
-          class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded"
-        >
-          View Scoreboard
-        </button>
+      <div class="flex gap-5">
+        <div class="flex flex-col items-center gap-3">
+          <div
+            id="stats"
+            class="mb-4 p-4 bg-gray-800 rounded shadow-lg inline-block text-left max-w-xs mx-auto h-fit"
+          ></div>
+
+          <p id="status" class="mt-4 text-lg font-semibold"></p>
+        </div>
+        <div class="flex gap-2 flex-col">
+          <div
+            id="game"
+            class="grid grid-cols-3 gap-2 w-60 mx-auto w-auto"
+          ></div>
+
+          <div class="mt-4 space-x-2">
+            <button
+              type="button"
+              id="restart"
+              class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+            >
+              Restart
+            </button>
+            <button
+              type="button"
+              id="showStats"
+              class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded"
+            >
+              View Scoreboard
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -331,13 +342,25 @@
       function endGame(winner) {
         gameOver = true;
         if (winner === player) {
-          statusText.textContent = `You Win! 🎉`;
+          statusText.innerHTML = `
+          <div class="flex gap-2 flex-col items-center">
+            <span>You Win! 🎉</span> <img src="https://media.tenor.com/4-14T5-dvlQAAAAj/cheer-up-cheer.gif" class="w-46 h-46" />
+          </div>
+          `;
           stats[difficulty].wins++;
         } else if (winner === ai) {
-          statusText.textContent = `You Lose 😞`;
+          statusText.innerHTML = `
+          <div class="flex gap-2 flex-col items-center">
+            <span>You Lose! 😞</span> <img src="https://media.tenor.com/rC-qGPAySz4AAAAj/anime-girl.gif" class="w-46 h-46" />
+          </div>
+          `;
           stats[difficulty].losses++;
         } else {
-          statusText.textContent = `It's a Draw. 🤝`;
+          statusText.innerHTML = `
+          <div class="flex gap-2 flex-col items-center">
+            <span>It's a Draw! 🤝</span> <img src="https://media.tenor.com/raPfYNWm4rUAAAAi/bubu-dudu-sseeyall.gif" class="w-46 h-46" />
+          </div>
+          `;
           stats[difficulty].draws++;
         }
         updateStatsDisplay();
